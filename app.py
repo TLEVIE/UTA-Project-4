@@ -1,9 +1,6 @@
-from flask import Flask,render_template
+from flask import Flask,render_template, request
 import boto3, botocore
 import configparser
-import os
-from werkzeug.utils import secure_filename
-from flask import Flask, redirect, url_for, request
 import json
 import numpy as np
 
@@ -13,51 +10,30 @@ app = Flask(__name__)
 def home():
     return render_template('home.html')
 
-@app.route('/application', methods=["POST","GET"])
+@app.route('/application')
 def application():
-   cls = ''
-   prob = 0
+   return render_template('application.html')
 
-   if request.method == 'POST':
-      print('called')
-      config = configparser.ConfigParser()
-      config.read('config.ini')
+@app.route('/application', methods=["POST"])
+def application_post():
+      
+      result = ''
 
-      key = config['aws']['AWS_ACCESS_KEY']
-      secret = config['aws']['AWS_SECRET_ACCESS_KEY']
-
-      runtime = boto3.client(
-         "sagemaker-runtime",
-         aws_access_key_id=key,
-         aws_secret_access_key=secret
-      )
-
+      runtime = boto3.client("sagemaker-runtime", region_name='us-west-2')
       endpoint = 'enter endpoint here'
 
       # Read image into memory
-      payload = request.files['file']
+      payload = request.form['text_input']
 
       # Send image via InvokeEndpoint API
       response = runtime.invoke_endpoint(EndpointName=endpoint,
-                                         ContentType='application/x-image',
+                                         ContentType='text/csv',
                                          Body=payload)
 
       result = response["Body"].read()
       result = json.loads(result)
-      index = np.argmax(result)
 
-      object_categories = [
-        #enter object categories here
-      ]
-
-      cls = object_categories[index]
-      prob = str(round(result[index],2))
-
-   return render_template('application.html',cls=cls,prob=prob)
-
-def lyric_input(lyric):
-    #todo
-    return lyric
+      return render_template('application.html', result=result)
 
 #run flask app
 if __name__ == '__main__':
